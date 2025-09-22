@@ -1,6 +1,8 @@
 import sqlite3
-from app.database import DB_PATH
 from datetime import datetime
+
+DB_PATH = "data.db"
+
 def dict_from_row(row):
     if not row:
         return None
@@ -17,33 +19,30 @@ def dict_from_row(row):
         "status": row[10]
     }
 
-def get_connection(db_path="data.db"):
-    import sqlite3
-    conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
+def get_connection():
+    conn = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row
     return conn
 
-
-def save_telemetry(data, conn=None):
-    close_conn = False
-    if conn is None:
-        conn = sqlite3.connect("data.db")
-        close_conn = True
-
+def save_telemetry(data):
+    conn = get_connection()
     cursor = conn.cursor()
     
+    # Evitar duplicados
     cursor.execute(
         "SELECT 1 FROM telemetry WHERE vehicle_id=? AND ts=?",
         (data["vehicle_id"], data["ts"])
     )
     if cursor.fetchone():
-        if close_conn: conn.close()
+        conn.close()
         return
 
     cursor.execute(
-        """INSERT INTO telemetry (vehicle_id, ts, speed_kmh, temperature_c,
-           battery_pct, range_km, odometer_km, gps_lat, gps_lon, smoke_detected, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO telemetry (
+            vehicle_id, ts, speed_kmh, temperature_c,
+            battery_pct, range_km, odometer_km,
+            gps_lat, gps_lon, smoke_detected, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             data["vehicle_id"], data["ts"], data["speed_kmh"], data["temperature_c"],
             data["battery_pct"], data["range_km"], data["odometer_km"],
@@ -51,37 +50,26 @@ def save_telemetry(data, conn=None):
         )
     )
     conn.commit()
-    if close_conn:
-        conn.close()
+    conn.close()
 
-def get_latest_telemetry(vehicle_id: str, conn=None):
-    close_conn = False
-    if conn is None:
-        conn = sqlite3.connect("data.db")
-        close_conn = True
-
+def get_latest_telemetry(vehicle_id: str):
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM telemetry WHERE vehicle_id=? ORDER BY ts DESC LIMIT 1", (vehicle_id,)
+        "SELECT * FROM telemetry WHERE vehicle_id=? ORDER BY ts DESC LIMIT 1",
+        (vehicle_id,)
     )
     row = cursor.fetchone()
-    if close_conn:
-        conn.close()
-    return dict_from_row(row) if row else None
+    conn.close()
+    return dict_from_row(row)
 
-
-def get_telemetry_window(vehicle_id: str, window_start: datetime, conn=None):
-    close_conn = False
-    if conn is None:
-        conn = sqlite3.connect("data.db")
-        close_conn = True
-
+def get_telemetry_window(vehicle_id: str, window_start: datetime):
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM telemetry WHERE vehicle_id=? AND ts>=? ORDER BY ts ASC",
+        "SELECT * FROM telemetry WHERE vehicle_id>=? AND ts>=? ORDER BY ts ASC",
         (vehicle_id, window_start.isoformat())
     )
     rows = cursor.fetchall()
-    if close_conn:
-        conn.close()
+    conn.close()
     return [dict_from_row(r) for r in rows]

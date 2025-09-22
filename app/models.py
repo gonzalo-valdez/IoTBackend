@@ -27,3 +27,14 @@ class Telemetry(BaseModel):
         except Exception:
             raise ValueError("Invalid ISO8601 timestamp")
         return v
+
+VALID_COMMANDS = {"start", "stop", "start_telemetry", "stop_telemetry"}
+
+class CommandPayload(BaseModel):
+    command: str = Field(..., description="Command to send to vehicle")
+
+    @field_validator("command")
+    def validate_command(cls, v):
+        if v not in VALID_COMMANDS:
+            raise ValueError(f"Invalid command: {v}")
+        return v

@@ -24,3 +24,10 @@ def start_mqtt():
     client.subscribe("vehicles/+/telemetry", qos=1)
     client.loop_start()
     print(f"[MQTT] Subscrito a vehicles/+/telemetry en {MQTT_HOST}:{MQTT_PORT}")
+
+def publish_command(vehicle_id: str, command: str):
+    topic = f"vehicles/{vehicle_id}/commands"
+    client = mqtt.Client()
+    client.connect(MQTT_HOST, MQTT_PORT)
+    client.publish(topic, f'{{"command": "{command}"}}', qos=1)
+    client.disconnect()

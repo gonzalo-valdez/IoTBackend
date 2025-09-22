@@ -1,19 +1,20 @@
 from contextlib import asynccontextmanager
 from app.database import init_db
-from app.mqtt_client import start_mqtt
-from fastapi import FastAPI, HTTPException
+from app.mqtt_client import start_mqtt, publish_command
+from fastapi import FastAPI, HTTPException, Path
 from fastapi.responses import JSONResponse
 from app.models import Telemetry
 from app.repository import save_telemetry, get_latest_telemetry, get_telemetry_window
 from datetime import datetime, timezone, timedelta
 import pandas as pd
+from app.models import CommandPayload
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     init_db()
     start_mqtt()
     yield
-    # Shutdown (si quieres cerrar conexiones o limpiar cosas)
     print("[APP] Shutting down...")
 
 app = FastAPI(title="Vehicle Telemetry Service", lifespan=lifespan)
@@ -64,3 +65,11 @@ def telemetry_stats(vehicle_id: str, minutes: int = 60):
         "count": len(records),
         "stats": stats
     }
+
+# -----------------------
+# POST /vehicles/{vehicle_id}/commands
+# -----------------------
+@app.post("/vehicles/{vehicle_id}/commands", status_code=202)
+async def send_command(vehicle_id: str = Path(...), payload: CommandPayload = None):
+    publish_command(vehicle_id, payload.command)
+    return {"published": True}
