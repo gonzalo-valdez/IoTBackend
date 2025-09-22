@@ -67,6 +67,24 @@ curl -X POST http://127.0.0.1:8000/ingest \
     "status": "moving"
 }'
 ```
+Windows: 
+```bash
+$body = @{
+    vehicle_id = "veh-001"
+    ts = "2025-09-22T10:15:30Z"
+    speed_kmh = 42.7
+    temperature_c = 68.3
+    battery_pct = 55
+    range_km = 110.0
+    odometer_km = 12345.6
+    gps = @{lat=40.4168; lon=-3.7038}
+    smoke_detected = $false
+    status = "moving"
+} | ConvertTo-Json -Depth 3
+
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/ingest" -Method POST -Body $body -ContentType "application/json"
+```
+
 GET /vehicles/{vehicle_id}/latest
 Obtiene la última telemetría de un vehículo.
 ```bash
@@ -101,6 +119,15 @@ curl -X POST http://127.0.0.1:8000/vehicles/veh-001/commands \
 -H "Content-Type: application/json" \
 -d '{"command":"start"}'
 ```
+Windows:
+```bash
+$body = @{
+    command = "start"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/vehicles/veh-001/commands" -Method POST -Body $body -ContentType "application/json"
+```
+
 Script para publicar telemetría vía MQTT
 Guardar como publish_example.py:
 ```python
