@@ -4,3 +4,5 @@ pydantic
 paho-mqtt
 pytest
 python-dotenv
+pandas
+httpx
