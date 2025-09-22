@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime
-
+import numpy as np
+import pandas as pd
 DB_PATH = "data.db"
 
 def dict_from_row(row):
@@ -73,3 +74,25 @@ def get_telemetry_window(vehicle_id: str, window_start: datetime):
     rows = cursor.fetchall()
     conn.close()
     return [dict_from_row(r) for r in rows]
+
+def detect_anomalies_window_with_reason(window):
+    df = pd.DataFrame(window)
+    anomalies = []
+    
+    for var in ["speed_kmh", "temperature_c", "battery_pct"]:
+        median = df[var].median()
+        mad = np.median(np.abs(df[var] - median))
+        if mad == 0:
+            mad = 1e-6
+        # z-score robusto
+        df[f"{var}_z"] = (df[var] - median) / (1.4826 * mad)
+        threshold = 3  # umbral
+        for i, row in df.iterrows():
+            if abs(row[f"{var}_z"]) > threshold:
+                anomaly = row.to_dict()
+                anomaly["anomaly_variable"] = var
+                anomaly["anomaly_score"] = row[f"{var}_z"]
+                anomaly["anomaly_threshold"] = threshold
+                anomalies.append(anomaly)
+    
+    return anomalies

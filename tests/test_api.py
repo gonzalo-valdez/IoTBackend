@@ -84,3 +84,28 @@ def test_get_latest_no_data(client):
     response = client.get(f"/vehicles/{vid}/latest")
     assert response.status_code == 404
     assert response.json() == {"detail": "No telemetry found"}
+
+def test_anomalies_endpoint(client, clear_vehicle_data):
+    vehicle_id = "veh-test-anomalies"
+    clear_vehicle_data(vehicle_id)
+
+    now = datetime.now(timezone.utc)
+
+    # 5 registros normales
+    for i in range(5):
+        payload = make_payload(vehicle_id, (now - timedelta(minutes=i)).isoformat().replace("+00:00", "Z"))
+        payload["temperature_c"] = 50 + i  # rango normal 50-54
+        client.post("/ingest", json=payload)
+
+    # 1 registro anómalo
+    payload_anomaly = make_payload(vehicle_id, (now + timedelta(seconds=1)).isoformat().replace("+00:00", "Z"))
+    payload_anomaly["temperature_c"] = 500
+    client.post("/ingest", json=payload_anomaly)
+
+    response = client.get(f"/vehicles/{vehicle_id}/anomalies?minutes=60")
+    assert response.status_code == 200
+    data = response.json()
+    anomalies = data["anomalies"]
+
+    # Verificamos que se detectó el registro anómalo
+    assert any(a["temperature_c"] == 500 for a in anomalies)
